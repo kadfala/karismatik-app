@@ -113,3 +113,8 @@ header{text-align:center;padding:26px 0 8px}
 .cmd .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fbeae2;color:var(--braise-fonce)}
 .centre{max-width:420px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.ferme-carte{background:var(--papier);border:1px solid #ecd3ca;border-radius:var(--r);box-shadow:var(--ombre-m);padding:28px 20px;text-align:center;margin-top:8px}
+.ferme-carte .ic{width:58px;height:58px;border-radius:50%;background:#f7ede9;display:grid;place-items:center;margin:0 auto 14px}
+.ferme-carte .ic svg{width:30px;height:30px;color:var(--braise)}
+.ferme-carte h3{font-family:"Fraunces",serif;font-size:22px;color:var(--braise-fonce);margin-bottom:8px}
+.ferme-carte p{color:var(--gris);font-size:14.5px;line-height:1.55}

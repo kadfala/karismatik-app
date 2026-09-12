@@ -36,6 +36,10 @@
     </div>
 
     <div id="pan-menu">
+      <div class="ligne-plat" style="border-color:#f0dcb4;background:#fffdf9">
+        <div class="n"><b>Restaurant ouvert</b><span>Décoche pour fermer et ne plus recevoir de commandes</span></div>
+        <label class="switch"><input type="checkbox" id="sw-ouvert" onchange="basculerOuvert(this.checked)"><span class="slider"></span></label>
+      </div>
       <div class="compteur" id="compteur">0 plat activé</div>
       <div id="liste-plats"></div>
     </div>
@@ -99,6 +103,15 @@ async function basculer(id,val){
   chargerPlats();
 }
 
+/* État ouvert/fermé du restaurant */
+async function chargerEtat(){
+  const {data}=await sb.from('parametres').select('ouvert').eq('id',1).single();
+  if(data)document.getElementById("sw-ouvert").checked=!!data.ouvert;
+}
+async function basculerOuvert(val){
+  await sb.from('parametres').update({ouvert:val}).eq('id',1);
+}
+
 /* Commandes du jour */
 async function chargerCommandes(){
   const debut=new Date();debut.setHours(0,0,0,0);
@@ -131,7 +144,7 @@ function demarrer(){
   document.getElementById("vue-login").style.display="none";
   document.getElementById("vue-admin").style.display="block";
   chargerPlats();
-  /* Temps réel : chaque nouvelle commande s'affiche sans rafraîchir */
+  chargerEtat();
   sb.channel('cmd-live').on('postgres_changes',
     {event:'INSERT',schema:'public',table:'commandes'},
     ()=>{ if(ongletCourant==='cmd'){chargerCommandes();}

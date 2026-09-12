@@ -50,6 +50,22 @@ create policy "commandes_creation_publique" on commandes
 create policy "commandes_lecture_admin" on commandes
   for select to authenticated using (true);
 
+-- Paramètres du restaurant (ouvert / fermé)
+create table if not exists parametres (
+  id      smallint primary key default 1,
+  ouvert  boolean not null default true,
+  message text,
+  constraint parametres_ligne_unique check (id = 1)
+);
+alter table parametres enable row level security;
+create policy "parametres_lecture_publique" on parametres
+  for select using (true);
+create policy "parametres_maj_admin" on parametres
+  for update to authenticated using (true) with check (true);
+insert into parametres (id, ouvert, message) values
+ (1, true, 'Stock du jour épuisé. Karismatik ne reçoit plus de commandes aujourd''hui. À demain matin !')
+ on conflict (id) do nothing;
+
 -- 3) Le menu de Karismatik --------------------------------------
 insert into plats (nom, description, prix, categorie, image, ordre) values
  ('Foutou','Sauce au choix',1500,'pate','images/foutou.jpg',1),

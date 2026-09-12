@@ -97,7 +97,7 @@ async function chargerMenu(){
   const zone=document.getElementById("menu");
   if(error){zone.innerHTML='<div class="charge">Menu indisponible pour le moment.</div>';return;}
   PLATS=data||[];
-  if(!PLATS.length){zone.innerHTML='<div class="charge">Aucun plat activé aujourd\'hui.</div>';return;}
+  if(!PLATS.length){fermer("Tous les plats du jour sont épuisés. Karismatik ne reçoit plus de commandes pour aujourd'hui.");return;}
   let html='<h2 class="titre-section">Le menu du jour</h2>';
   PLATS.forEach((p,i)=>{
     html+='<div class="plat" id="plat-'+i+'">'
@@ -178,7 +178,31 @@ document.getElementById("btn-commander").addEventListener("click",async()=>{
   ok.scrollIntoView({behavior:"smooth",block:"center"});
 });
 
-afficherDate();afficherContact();afficherBandeau();chargerMenu();maj();
+/* État du restaurant (ouvert/fermé) + fermeture à l'écran */
+async function etatRestaurant(){
+  const {data}=await sb.from('parametres').select('*').eq('id',1).single();
+  return data;
+}
+function fermer(msg){
+  document.getElementById("menu").innerHTML=
+    '<div class="ferme-carte"><div class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>'
+    +'<h3>Commandes fermées</h3><p>'+msg+'</p></div>';
+  const f=document.querySelector('.carte-form'); if(f)f.style.display='none';
+  const t=document.querySelector('.total-barre'); if(t)t.style.display='none';
+  const b=document.getElementById("bandeau"); b.className="bandeau tard";
+  b.innerHTML='<span class="pastille"></span><span>Le restaurant ne reçoit plus de commandes pour le moment.</span>';
+}
+
+async function init(){
+  afficherDate();afficherContact();
+  let etat=null;
+  try{etat=await etatRestaurant();}catch(e){}
+  if(etat && etat.ouvert===false){ fermer(etat.message||"Karismatik ne reçoit plus de commandes aujourd'hui."); return; }
+  afficherBandeau();
+  await chargerMenu();
+  maj();
+}
+init();
 </script>
 </body>
 </html>
