@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karismatik Restaurant — Commander</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="badge-logo"><img src="logo.png" alt="Karismatik Restaurant"></div>
+    <p class="accroche">Ta commande du jour, livrée chaude.</p>
+    <div class="date" id="date"></div>
+  </header>
+
+  <div class="bandeau" id="bandeau"></div>
+
+  <div class="contact">
+    <div class="ct-txt">
+      <div class="ct-lib">Commander par téléphone</div>
+      <div class="ct-num" id="ct-num"></div>
+    </div>
+    <div class="ct-btns">
+      <a class="ct-btn ct-appel" id="ct-appel"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15 15 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.4 0 .8-.3 1z"/></svg>Appeler</a>
+      <a class="ct-btn ct-wa" id="ct-wa" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2zm0 2a8 8 0 0 1 6.9 12l-.3.5.6 2.3-2.4-.6-.5.3A8 8 0 1 1 12 4z"/></svg>WhatsApp</a>
+    </div>
+  </div>
+
+  <div id="menu"><div class="charge">Chargement du menu...</div></div>
+
+  <div class="carte-form">
+    <div class="champ"><label class="lib" for="prenom">Prénom</label>
+      <input type="text" id="prenom" placeholder="Ex : Kader"></div>
+    <div class="champ"><label class="lib" for="contact">Contact (téléphone)</label>
+      <input type="text" id="contact" placeholder="Ex : 70 00 00 00" inputmode="tel"></div>
+    <div class="champ"><label class="lib">Tu manges où ?</label>
+      <div class="modes">
+        <label><input type="radio" name="mode" value="Sur place" checked>Sur place</label>
+        <label><input type="radio" name="mode" value="Livraison">Livraison</label>
+      </div></div>
+    <div class="champ" id="bloc-lieu" style="display:none">
+      <label class="lib">Type de lieu</label>
+      <div class="sous-modes">
+        <label><input type="radio" name="typelieu" value="Position GPS" checked>Position GPS</label>
+        <label><input type="radio" name="typelieu" value="Service ou lieu connu">Service ou lieu connu</label>
+      </div>
+      <button type="button" class="btn-gps" id="btn-gps"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Partager ma position GPS</button>
+      <input type="text" id="lieu" placeholder="Ta position s'ajoute ici, ou colle un lien Google Maps">
+    </div>
+  </div>
+
+  <p class="pied">Karismatik Restaurant, Ouagadougou.<br>Paiement à la livraison.</p>
+</div>
+
+<div class="total-barre"><div class="wrap" style="padding-bottom:0">
+  <div class="total-carte">
+    <div class="total-ligne"><span class="lib">Total à payer à la livraison</span><span class="val" id="total">0 FCFA</span></div>
+    <button class="commander" id="btn-commander"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z"/></svg>Envoyer ma commande</button>
+    <div class="erreur" id="erreur"></div>
+    <div class="ok" id="ok"></div>
+  </div>
+</div></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Client Supabase */
+const sb = supabase.createClient(KARISMATIK.SUPABASE_URL, KARISMATIK.SUPABASE_ANON_KEY);
+
+const HEURE_LIMITE={h:11,m:30}, HEURE_LIVRAISON="12h30";
+let PLATS=[]; const panier={};
+
+function avantLimite(){const n=new Date();return n.getHours()*60+n.getMinutes() < HEURE_LIMITE.h*60+HEURE_LIMITE.m;}
+function fmt(n){return n.toLocaleString('fr-FR');}
+
+function afficherDate(){document.getElementById("date").textContent=
+  new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function afficherContact(){
+  document.getElementById("ct-num").textContent="75 31 31 34";
+  document.getElementById("ct-appel").href="tel:+"+KARISMATIK.WHATSAPP;
+  document.getElementById("ct-wa").href="https://wa.me/"+KARISMATIK.WHATSAPP;}
+function afficherBandeau(){
+  const b=document.getElementById("bandeau");
+  if(avantLimite()){b.className="bandeau ouvert";
+    b.innerHTML='<span class="pastille"></span><span>Pour être livré à '+HEURE_LIVRAISON+', passez votre commande avant 11h30. Paiement à la livraison.</span>';}
+  else{b.className="bandeau tard";
+    b.innerHTML='<span class="pastille"></span><span>Commande toujours possible jusqu\'à épuisement des stocks. Passée après 11h30, l\'heure de livraison n\'est plus garantie.</span>';}
+}
+
+/* Lecture du menu depuis Supabase (plats disponibles) */
+async function chargerMenu(){
+  const {data,error}=await sb.from('plats').select('*').eq('dispo',true).order('ordre',{ascending:true});
+  const zone=document.getElementById("menu");
+  if(error){zone.innerHTML='<div class="charge">Menu indisponible pour le moment.</div>';return;}
+  PLATS=data||[];
+  if(!PLATS.length){zone.innerHTML='<div class="charge">Aucun plat activé aujourd\'hui.</div>';return;}
+  let html='<h2 class="titre-section">Le menu du jour</h2>';
+  PLATS.forEach((p,i)=>{
+    html+='<div class="plat" id="plat-'+i+'">'
+      +'<div class="thumb"><span class="ini">'+p.nom.charAt(0)+'</span>'
+      +(p.image?'<img src="'+p.image+'" alt="'+p.nom+'" onerror="this.style.display=\'none\'">':'')+'</div>'
+      +'<div class="plat-info"><div class="plat-nom">'+p.nom+'</div>'
+      +'<div class="plat-desc">'+(p.description||'')+'</div>'
+      +'<span class="plat-prix">'+fmt(p.prix)+' FCFA</span></div>'
+      +'<div class="stepper"><button onclick="modifier('+i+',-1)">&minus;</button>'
+      +'<span class="qte" id="qte-'+i+'">0</span>'
+      +'<button onclick="modifier('+i+',1)">+</button></div></div>';
+  });
+  zone.innerHTML=html;
+}
+function modifier(i,pas){
+  const q=(panier[i]||0)+pas;
+  if(q<=0){delete panier[i];}else{panier[i]=q;}
+  document.getElementById("qte-"+i).textContent=panier[i]||0;
+  document.getElementById("plat-"+i).classList.toggle("actif",!!panier[i]);
+  maj();
+}
+function total(){let t=0;for(const i in panier){t+=PLATS[i].prix*panier[i];}return t;}
+function maj(){document.getElementById("total").textContent=fmt(total())+" FCFA";}
+
+/* Type de lieu */
+function appliquerTypeLieu(){
+  const t=document.querySelector('input[name="typelieu"]:checked').value, gps=t==="Position GPS";
+  document.getElementById("btn-gps").style.display=gps?"flex":"none";
+  document.getElementById("lieu").placeholder=gps?"Ta position s'ajoute ici, ou colle un lien Google Maps"
+    :"Ex : SOLIDEV, Commissariat de Ouidi, Caisse Populaire Sankariaré, ...";
+}
+document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",()=>{
+  const liv=document.querySelector('input[name="mode"]:checked').value==="Livraison";
+  document.getElementById("bloc-lieu").style.display=liv?"block":"none";
+  if(liv)appliquerTypeLieu();
+}));
+document.querySelectorAll('input[name="typelieu"]').forEach(r=>r.addEventListener("change",appliquerTypeLieu));
+document.getElementById("btn-gps").addEventListener("click",()=>{
+  const f=document.getElementById("lieu"),b=document.getElementById("btn-gps");
+  if(!navigator.geolocation){f.placeholder="GPS indisponible, colle un lien Google Maps";return;}
+  b.lastChild.textContent=" Localisation...";
+  navigator.geolocation.getCurrentPosition(
+    p=>{f.value="https://maps.google.com/?q="+p.coords.latitude.toFixed(6)+","+p.coords.longitude.toFixed(6);b.lastChild.textContent=" Position ajoutée \u2713";},
+    ()=>{b.lastChild.textContent=" Partager ma position GPS";f.placeholder="Autorisation refusée, colle un lien Google Maps";});
+});
+
+/* Envoi de la commande : enregistrement Supabase + WhatsApp */
+document.getElementById("btn-commander").addEventListener("click",async()=>{
+  const err=document.getElementById("erreur"),ok=document.getElementById("ok");
+  err.textContent="";ok.textContent="";
+  if(total()===0){err.textContent="Choisis au moins un plat.";return;}
+  const prenom=document.getElementById("prenom").value.trim();
+  const contact=document.getElementById("contact").value.trim();
+  const mode=document.querySelector('input[name="mode"]:checked').value;
+  const typelieu=document.querySelector('input[name="typelieu"]:checked').value;
+  const lieu=document.getElementById("lieu").value.trim();
+  if(!prenom){err.textContent="Indique ton prénom.";return;}
+  if(!contact){err.textContent="Indique ton contact.";return;}
+  if(mode==="Livraison"&&!lieu){err.textContent="Indique le lieu de livraison.";return;}
+
+  const articles=[];
+  for(const i in panier){articles.push({nom:PLATS[i].nom,prix:PLATS[i].prix,qte:panier[i]});}
+
+  const btn=document.getElementById("btn-commander");btn.disabled=true;
+  const {error}=await sb.from('commandes').insert({
+    prenom,contact,mode,type_lieu:mode==="Livraison"?typelieu:null,
+    lieu:mode==="Livraison"?lieu:null,articles,total:total(),avant_1130:avantLimite()
+  });
+  btn.disabled=false;
+  if(error){err.textContent="Envoi impossible, réessaie.";return;}
+
+  for(const k in panier)delete panier[k];
+  document.getElementById("prenom").value="";
+  document.getElementById("contact").value="";
+  document.getElementById("lieu").value="";
+  ok.textContent="Commande envoyée à Karismatik. Merci "+prenom+", elle est bien reçue.";
+  chargerMenu();maj();
+  ok.scrollIntoView({behavior:"smooth",block:"center"});
+});
+
+afficherDate();afficherContact();afficherBandeau();chargerMenu();maj();
+</script>
+</body>
+</html>

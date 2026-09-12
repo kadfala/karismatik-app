@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Karismatik — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Connexion -->
+  <div id="vue-login" class="centre" style="margin:40px auto 0">
+    <header><div class="badge-logo"><img src="logo.png" alt="Karismatik"></div></header>
+    <h2 class="titre-section">Espace administrateur</h2>
+    <div class="carte-form">
+      <div class="champ"><label class="lib" for="email">Email</label><input type="email" id="email" placeholder="admin@karismatik.bf"></div>
+      <div class="champ"><label class="lib" for="mdp">Mot de passe</label><input type="password" id="mdp" placeholder="••••••••"></div>
+      <button class="btn-plein" id="btn-login">Se connecter</button>
+      <div class="erreur" id="err-login"></div>
+    </div>
+    <p class="pied"><a href="index.html" style="color:var(--gris)">Retour au site client</a></p>
+  </div>
+
+  <!-- Tableau de bord -->
+  <div id="vue-admin" style="display:none">
+    <div class="topbar">
+      <div class="marque"><img src="logo.png" alt=""><b>Karismatik Admin</b></div>
+      <button class="ct-btn ct-appel" id="btn-logout">Déconnexion</button>
+    </div>
+    <div class="onglets">
+      <button id="ong-menu" class="actif" onclick="onglet('menu')">Menu du jour</button>
+      <button id="ong-cmd" onclick="onglet('cmd')">Commandes<sup id="pastille-cmd" style="color:var(--braise)"></sup></button>
+    </div>
+
+    <div id="pan-menu">
+      <div class="compteur" id="compteur">0 plat activé</div>
+      <div id="liste-plats"></div>
+    </div>
+
+    <div id="pan-cmd" style="display:none">
+      <button class="ct-btn ct-appel" id="btn-refresh" style="margin-bottom:12px" onclick="chargerCommandes()">Rafraîchir</button>
+      <div class="stats">
+        <div class="stat"><b id="s-total">0</b><span>Aujourd'hui</span></div>
+        <div class="stat"><b id="s-place">0</b><span>Sur place</span></div>
+        <div class="stat"><b id="s-liv">0</b><span>Livraison</span></div>
+      </div>
+      <div id="liste-cmd"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const sb = supabase.createClient(KARISMATIK.SUPABASE_URL, KARISMATIK.SUPABASE_ANON_KEY);
+function fmt(n){return (n||0).toLocaleString('fr-FR');}
+
+/* Connexion */
+document.getElementById("btn-login").addEventListener("click",async()=>{
+  const err=document.getElementById("err-login");err.textContent="";
+  const email=document.getElementById("email").value.trim();
+  const password=document.getElementById("mdp").value;
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){err.textContent="Connexion refusée. Vérifie email et mot de passe.";return;}
+  demarrer();
+});
+document.getElementById("btn-logout").addEventListener("click",async()=>{await sb.auth.signOut();location.reload();});
+
+let ongletCourant="menu";
+function onglet(n){
+  ongletCourant=n;
+  document.getElementById("pan-menu").style.display=n==="menu"?"block":"none";
+  document.getElementById("pan-cmd").style.display=n==="cmd"?"block":"none";
+  document.getElementById("ong-menu").classList.toggle("actif",n==="menu");
+  document.getElementById("ong-cmd").classList.toggle("actif",n==="cmd");
+  if(n==="cmd"){document.getElementById("pastille-cmd").textContent="";chargerCommandes();}
+}
+
+/* Menu : liste tous les plats avec interrupteur dispo */
+async function chargerPlats(){
+  const {data,error}=await sb.from('plats').select('*').order('ordre',{ascending:true});
+  if(error)return;
+  const z=document.getElementById("liste-plats");let actifs=0,html="";
+  data.forEach(p=>{
+    if(p.dispo)actifs++;
+    html+='<div class="ligne-plat"><div class="n"><b>'+p.nom+'</b><span>'+fmt(p.prix)+' FCFA</span></div>'
+      +'<label class="switch"><input type="checkbox" '+(p.dispo?'checked':'')
+      +' onchange="basculer('+p.id+',this.checked)"><span class="slider"></span></label></div>';
+  });
+  z.innerHTML=html;
+  document.getElementById("compteur").textContent=actifs+" plat"+(actifs>1?"s":"")+" activé"+(actifs>1?"s":"");
+}
+async function basculer(id,val){
+  await sb.from('plats').update({dispo:val}).eq('id',id);
+  chargerPlats();
+}
+
+/* Commandes du jour */
+async function chargerCommandes(){
+  const debut=new Date();debut.setHours(0,0,0,0);
+  const {data,error}=await sb.from('commandes').select('*').gte('cree_le',debut.toISOString()).order('cree_le',{ascending:false});
+  if(error)return;
+  let place=0,liv=0;
+  data.forEach(c=>{c.mode==="Livraison"?liv++:place++;});
+  document.getElementById("s-total").textContent=data.length;
+  document.getElementById("s-place").textContent=place;
+  document.getElementById("s-liv").textContent=liv;
+  const z=document.getElementById("liste-cmd");
+  if(!data.length){z.innerHTML='<div class="charge">Aucune commande aujourd\'hui.</div>';return;}
+  let html="";
+  data.forEach((c,i)=>{
+    const h=new Date(c.cree_le).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    let lignes="";(c.articles||[]).forEach(a=>{lignes+="&bull; "+a.nom+" x"+a.qte+" ("+fmt(a.prix*a.qte)+" FCFA)<br>";});
+    html+='<div class="cmd" id="c-'+i+'"><div class="tete" onclick="document.getElementById(\'c-'+i+'\').classList.toggle(\'ouvert\')">'
+      +'<span>'+c.prenom+' &middot; '+fmt(c.total)+' FCFA</span>'
+      +'<span class="tag">'+c.mode+' &middot; '+h+'</span></div>'
+      +'<div class="det">'+lignes
+      +'Contact : '+c.contact+'<br>'
+      +(c.mode==="Livraison"?('Lieu ('+(c.type_lieu||'')+') : '+(c.lieu||'')+'<br>'):'')
+      +(c.avant_1130?'Avant 11h30, livraison 12h30':'Après 11h30, heure à confirmer')
+      +'</div></div>';
+  });
+  z.innerHTML=html;
+}
+
+function demarrer(){
+  document.getElementById("vue-login").style.display="none";
+  document.getElementById("vue-admin").style.display="block";
+  chargerPlats();
+  /* Temps réel : chaque nouvelle commande s'affiche sans rafraîchir */
+  sb.channel('cmd-live').on('postgres_changes',
+    {event:'INSERT',schema:'public',table:'commandes'},
+    ()=>{ if(ongletCourant==='cmd'){chargerCommandes();}
+          else{document.getElementById('pastille-cmd').textContent=' \u25CF';} }
+  ).subscribe();
+}
+/* Reprise de session si déjà connecté */
+sb.auth.getSession().then(({data})=>{if(data.session)demarrer();});
+</script>
+</body>
+</html>
