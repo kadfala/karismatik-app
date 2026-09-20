@@ -5,7 +5,7 @@
    Le numéro WhatsApp est au format international, sans "+".
    ================================================================ */
 window.KARISMATIK = {
-  SUPABASE_URL: "https://TON-PROJET.supabase.co",
-  SUPABASE_ANON_KEY: "COLLE_ICI_TA_CLE_ANON_PUBLIQUE",
+  SUPABASE_URL: "https://ajvcartpnxvhoxbsolsp.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_bAP8dbJVZTPTupUk9i6hLA_ZXi_9K9U",
   WHATSAPP: "22675313134"
 };
