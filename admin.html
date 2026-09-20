@@ -40,6 +40,12 @@
         <div class="n"><b>Restaurant ouvert</b><span>Décoche pour fermer et ne plus recevoir de commandes</span></div>
         <label class="switch"><input type="checkbox" id="sw-ouvert" onchange="basculerOuvert(this.checked)"><span class="slider"></span></label>
       </div>
+      <div class="carte-form" style="margin-bottom:14px;padding:14px">
+        <label class="lib" for="msg-ferme">Message affiché quand le restaurant est fermé</label>
+        <textarea id="msg-ferme" rows="3" style="width:100%;padding:12px 14px;border:1.5px solid var(--trait);border-radius:12px;font-size:15px;font-family:inherit;background:#fffdf9;resize:vertical"></textarea>
+        <button class="btn-plein" id="btn-msg" onclick="enregistrerMessage()" style="margin-top:10px">Enregistrer le message</button>
+        <div class="ok" id="msg-ok"></div>
+      </div>
       <div class="compteur" id="compteur">0 plat activé</div>
       <div id="liste-plats"></div>
     </div>
@@ -105,11 +111,21 @@ async function basculer(id,val){
 
 /* État ouvert/fermé du restaurant */
 async function chargerEtat(){
-  const {data}=await sb.from('parametres').select('ouvert').eq('id',1).single();
-  if(data)document.getElementById("sw-ouvert").checked=!!data.ouvert;
+  const {data}=await sb.from('parametres').select('ouvert,message').eq('id',1).single();
+  if(data){
+    document.getElementById("sw-ouvert").checked=!!data.ouvert;
+    document.getElementById("msg-ferme").value=data.message||"";
+  }
 }
 async function basculerOuvert(val){
   await sb.from('parametres').update({ouvert:val}).eq('id',1);
+}
+async function enregistrerMessage(){
+  const m=document.getElementById("msg-ferme").value.trim();
+  await sb.from('parametres').update({message:m}).eq('id',1);
+  const ok=document.getElementById("msg-ok");
+  ok.textContent="Message enregistré \u2713";
+  setTimeout(()=>{ok.textContent="";},2500);
 }
 
 /* Commandes du jour */
@@ -122,6 +138,7 @@ async function chargerCommandes(){
   document.getElementById("s-total").textContent=data.length;
   document.getElementById("s-place").textContent=place;
   document.getElementById("s-liv").textContent=liv;
+  dernierNombre=data.length;
   const z=document.getElementById("liste-cmd");
   if(!data.length){z.innerHTML='<div class="charge">Aucune commande aujourd\'hui.</div>';return;}
   let html="";
@@ -140,11 +157,23 @@ async function chargerCommandes(){
   z.innerHTML=html;
 }
 
+let dernierNombre=0;
+/* Vérification automatique toutes les 15 s, en secours du temps réel */
+async function verifierNouvelles(){
+  if(document.hidden)return;
+  const debut=new Date();debut.setHours(0,0,0,0);
+  const {count}=await sb.from('commandes').select('*',{count:'exact',head:true}).gte('cree_le',debut.toISOString());
+  if(count==null)return;
+  if(ongletCourant==='cmd'){chargerCommandes();}
+  else if(count>dernierNombre){document.getElementById('pastille-cmd').textContent=' \u25CF';dernierNombre=count;}
+}
+
 function demarrer(){
   document.getElementById("vue-login").style.display="none";
   document.getElementById("vue-admin").style.display="block";
   chargerPlats();
   chargerEtat();
+  setInterval(verifierNouvelles,15000);
   sb.channel('cmd-live').on('postgres_changes',
     {event:'INSERT',schema:'public',table:'commandes'},
     ()=>{ if(ongletCourant==='cmd'){chargerCommandes();}
