@@ -151,6 +151,7 @@ async function chargerCommandes(){
       +'<div class="det">'+lignes
       +'Contact : '+c.contact+'<br>'
       +(c.mode==="Livraison"?('Lieu ('+(c.type_lieu||'')+') : '+(c.lieu||'')+'<br>'):'')
+      +(c.commentaire?('Commentaire : '+c.commentaire+'<br>'):'')
       +(c.avant_1130?'Avant 11h30, livraison 12h30':'Après 11h30, heure à confirmer')
       +'</div></div>';
   });
